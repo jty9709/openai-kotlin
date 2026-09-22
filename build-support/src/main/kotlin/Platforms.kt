@@ -1,8 +1,9 @@
 import org.gradle.kotlin.dsl.creating
 import org.gradle.kotlin.dsl.getValue
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.konan.target.HostManager
-import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 fun KotlinMultiplatformExtension.native() {
     sourceSets.apply {
@@ -52,12 +53,9 @@ fun KotlinMultiplatformExtension.jsWasm() {
 
 fun KotlinMultiplatformExtension.jsNode() {
     js {
-        compilations.all {
-            kotlinOptions {
-                moduleKind = "umd"
-                sourceMap = true
-                metaInfo = true
-            }
+        compilerOptions {
+            moduleKind.set(JsModuleKind.MODULE_UMD)
+            sourceMap.set(true)
         }
         nodejs()
     }
