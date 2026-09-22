@@ -12,6 +12,7 @@ import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.plugins.sse.SSE
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.util.*
@@ -73,6 +74,8 @@ internal fun createHttpClient(config: OpenAIConfig): HttpClient {
         }
 
         install(SSE)
+
+        install(WebSockets)
 
         defaultRequest {
             url(config.host.baseUrl)
