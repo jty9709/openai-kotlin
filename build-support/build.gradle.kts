@@ -8,8 +8,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly(kotlin("gradle-plugin", "2.0.0"))
-    compileOnly(kotlin("gradle-plugin-api"))
+    compileOnly(kotlin("gradle-plugin", libs.versions.kotlin.get()))
+    compileOnly(kotlin("gradle-plugin-api", libs.versions.kotlin.get()))
 }
 
 gradlePlugin {
