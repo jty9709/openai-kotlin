@@ -7,73 +7,43 @@
 Kotlin client for [OpenAI's API](https://platform.openai.com/docs/api-reference) with multiplatform and coroutines
 capabilities.
 
-中文接入指南：[KMP SDK 接入与使用](guides/KmpIntegration.zh-CN.md)（包含当前源码接入、平台引擎、流式调用及本次同步修复的迁移说明）。
+中文文档：[在 KMP 工程中接入 OpenAI SDK](guides/KmpIntegration.zh-CN.md)。面向接入方的 Android/iOS 共享模块，包含 Maven 仓库配置、commonMain 依赖、平台引擎、共享业务封装和详细调用示例。
 
-## 📦 Setup
+## 📦 KMP Setup
 
-1. Install OpenAI API Kotlin client by adding the following dependency to your `build.gradle` file:
+当前产物为 **`com.aallam.openai:openai-client:4.1.0-local.2`**，由 Kotlin **2.1.21** 构建，已发布到当前机器的 Maven Local。同机的其他 KMP 工程可以直接使用；其他机器/CI 需要 SDK 提供方提供实际可访问的 Maven 仓库地址和版本。
 
-```groovy
-repositories {
-    mavenCentral()
-}
+在**接入工程**的 `settings.gradle.kts` 合并仓库配置：
 
-dependencies {
-    implementation "com.aallam.openai:openai-client:4.1.0"
-}
-```
-
-2. Choose and add to your dependencies one of [Ktor's engines](https://ktor.io/docs/http-client-engines.html).
-
-#### BOM
-
-Alternatively, you can use [openai-client-bom](/openai-client-bom)  by adding the following dependency to your `build.gradle` file
-
-```groovy
-dependencies {
-    // import Kotlin API client BOM
-    implementation platform('com.aallam.openai:openai-client-bom:4.1.0')
-
-    // define dependencies without versions
-    implementation 'com.aallam.openai:openai-client'
-    runtimeOnly 'io.ktor:ktor-client-okhttp'
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        mavenLocal { content { includeGroup("com.aallam.openai") } }
+        google()
+        mavenCentral()
+    }
 }
 ```
 
-### Multiplatform
+在已有 KMP 共享模块的 `build.gradle.kts` 合并依赖：
 
-In multiplatform projects, add openai client dependency to `commonMain`, and choose
-an [engine](https://ktor.io/docs/http-client-engines.html) for each target.
-
-### Maven
-
-Gradle is required for multiplatform support, but there's nothing stopping you from using the jvm client in a Maven
-project. You still need to add to your dependencies one
-of [Ktor's engines](https://ktor.io/docs/http-client-engines.html).
-
-<details>
- <summary>Setup the client with maven</summary>
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>com.aallam.openai</groupId>
-        <artifactId>openai-client-jvm</artifactId>
-        <version>4.1.0</version>
-    </dependency>
-            
-    <dependency>
-        <groupId>io.ktor</groupId>
-        <artifactId>ktor-client-okhttp-jvm</artifactId>
-        <version>3.0.0</version>
-        <scope>runtime</scope>
-    </dependency>
-</dependencies>
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.aallam.openai:openai-client:4.1.0-local.2")
+        }
+        androidMain.dependencies {
+            implementation("io.ktor:ktor-client-okhttp:3.0.0")
+        }
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:3.0.0")
+        }
+    }
+}
 ```
 
-</details>
-
-The BOM is not supported for Maven projects.
+Gradle 自动为各目标选择 SDK 变体，业务调用放在 `commonMain`。完整 Android/iOS 模块配置、版本目录写法及 JVM/JS/Wasm 可选目标见[接入指南](guides/KmpIntegration.zh-CN.md)。SDK 提供方的发布命令见[维护文档](guides/MaintainerPublishing.zh-CN.md)。
 
 ## ⚡️ Getting Started
 
