@@ -4,11 +4,13 @@ import com.aallam.openai.api.chat.ChatResponseFormat
 import com.aallam.openai.api.chat.Effort
 import com.aallam.openai.api.chat.SearchContextSize
 import com.aallam.openai.api.chat.UserLocation
+import com.aallam.openai.api.conversation.ConversationId
 import com.aallam.openai.api.core.Parameters
 import com.aallam.openai.api.model.ModelId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Creates a model response.
@@ -19,6 +21,15 @@ public data class ResponseRequest(
      * Model to use for this response.
      */
     @SerialName("model") public val model: ModelId,
+
+    /**
+     * The conversation this response belongs to.
+     *
+     * Items from this conversation are prepended to [input], and the input and output items of this
+     * response are added to the conversation once the response completes. Cannot be combined with
+     * [previousResponseId].
+     */
+    @SerialName("conversation") public val conversation: ConversationId? = null,
 
     /**
      * Text or structured input.
@@ -61,6 +72,13 @@ public data class ResponseRequest(
     @SerialName("store") public val store: Boolean? = null,
 
     /**
+     * Whether to stream the response as server-sent events.
+     *
+     * This is set automatically by the streaming methods of the Responses API.
+     */
+    @SerialName("stream") public val stream: Boolean? = null,
+
+    /**
      * Sampling temperature.
      */
     @SerialName("temperature") public val temperature: Double? = null,
@@ -94,6 +112,66 @@ public data class ResponseRequest(
      * End-user identifier.
      */
     @SerialName("user") public val user: String? = null,
+)
+
+/**
+ * Compacts a response's context window.
+ *
+ * @property model the model to use for the compaction.
+ * @property input the input to compact.
+ * @property instructions system instructions used while compacting.
+ * @property previousResponseId the response to continue from.
+ */
+@Serializable
+public data class ResponseCompactRequest(
+    @SerialName("model") public val model: ModelId? = null,
+    @SerialName("input") public val input: JsonElement? = null,
+    @SerialName("instructions") public val instructions: String? = null,
+    @SerialName("previous_response_id") public val previousResponseId: ResponseId? = null,
+)
+
+/**
+ * The result of compacting a response.
+ *
+ * @property id the identifier of the compacted response.
+ * @property createdAt the Unix timestamp (in seconds) of when the response was created.
+ * @property output the compacted output items.
+ * @property usage token accounting for the compaction.
+ */
+@Serializable
+public data class CompactedResponse(
+    @SerialName("id") public val id: String? = null,
+    @SerialName("created_at") public val createdAt: Long? = null,
+    @SerialName("output") public val output: JsonElement? = null,
+    @SerialName("usage") public val usage: JsonObject? = null,
+)
+
+/**
+ * Counts the tokens an input would consume.
+ *
+ * @property model the model the input would be sent to.
+ * @property input the input to count.
+ * @property instructions system instructions included in the count.
+ * @property conversation the conversation the input belongs to.
+ * @property parallelToolCalls whether parallel tool calls are enabled.
+ */
+@Serializable
+public data class ResponseInputTokenCountRequest(
+    @SerialName("model") public val model: ModelId? = null,
+    @SerialName("input") public val input: JsonElement? = null,
+    @SerialName("instructions") public val instructions: String? = null,
+    @SerialName("conversation") public val conversation: ConversationId? = null,
+    @SerialName("parallel_tool_calls") public val parallelToolCalls: Boolean? = null,
+)
+
+/**
+ * The result of counting input tokens.
+ *
+ * @property inputTokens the number of tokens the input would consume.
+ */
+@Serializable
+public data class ResponseInputTokenCount(
+    @SerialName("input_tokens") public val inputTokens: Long? = null,
 )
 
 /**
