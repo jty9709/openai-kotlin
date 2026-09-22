@@ -10,6 +10,8 @@ import io.ktor.client.network.sockets.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.sse.ClientSSESession
 import io.ktor.client.plugins.sse.sseSession
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.ContentType
@@ -23,7 +25,25 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 
 /** HTTP transport layer */
-internal class HttpTransport(private val httpClient: HttpClient) : HttpRequester {
+internal class HttpTransport(
+    private val httpClient: HttpClient,
+    override val baseUrl: String,
+) : HttpRequester {
+
+    override suspend fun webSocketSession(
+        path: String,
+        headers: Map<String, String>,
+    ): DefaultClientWebSocketSession {
+        val url = baseUrl.trimEnd('/').toWebSocketUrl() + "/" + path.trimStart('/')
+        try {
+            return httpClient.webSocketSession {
+                url(url)
+                headers.forEach { (key, value) -> header(key, value) }
+            }
+        } catch (e: Exception) {
+            throw handleException(e)
+        }
+    }
 
     /** Perform an HTTP request and get a result */
     override suspend fun <T : Any> perform(info: TypeInfo, block: suspend (HttpClient) -> HttpResponse): T {
@@ -93,3 +113,11 @@ internal class HttpTransport(private val httpClient: HttpClient) : HttpRequester
         }
     }
 }
+
+/** Maps an HTTP base URL onto its WebSocket equivalent. */
+private fun String.toWebSocketUrl(): String =
+    when {
+        startsWith("https://") -> "wss://" + removePrefix("https://")
+        startsWith("http://") -> "ws://" + removePrefix("http://")
+        else -> this
+    }

@@ -3,6 +3,7 @@ package com.aallam.openai.client.internal.http
 import com.aallam.openai.api.run.AssistantStreamEvent
 import io.ktor.client.*
 import io.ktor.client.plugins.sse.ClientSSESession
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.sse.ServerSentEvent
@@ -13,6 +14,19 @@ import kotlinx.coroutines.flow.Flow
  * Http request performer.
  */
 internal interface HttpRequester : AutoCloseable {
+
+    /**
+     * Base URL of the configured host, e.g. `https://api.openai.com/v1/`.
+     */
+    val baseUrl: String
+
+    /**
+     * Opens a WebSocket session at [path], relative to [baseUrl].
+     */
+    suspend fun webSocketSession(
+        path: String,
+        headers: Map<String, String> = emptyMap(),
+    ): DefaultClientWebSocketSession
 
     /**
      * Perform an HTTP request and get a result.
