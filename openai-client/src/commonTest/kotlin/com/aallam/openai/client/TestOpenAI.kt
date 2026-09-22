@@ -26,10 +26,10 @@ internal fun openAIConfig(): OpenAIConfig = OpenAIConfig(
 )
 
 private fun transport(config: OpenAIConfig? = null): HttpTransport {
+    val actualConfig = config ?: openAIConfig()
     return HttpTransport(
-        createHttpClient(
-            config ?: openAIConfig()
-        )
+        createHttpClient(actualConfig),
+        actualConfig.host.baseUrl,
     )
 }
 
