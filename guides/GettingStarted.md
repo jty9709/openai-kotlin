@@ -1,5 +1,7 @@
 # Getting Started
 
+For the current source integration and migration notes, see [KMP SDK 接入与使用指南](KmpIntegration.zh-CN.md).
+
 Create an instance of `OpenAI` client:
 
 ```kotlin
@@ -123,6 +125,26 @@ val response = openAI.response(
 println(response.outputText)
 ```
 
+### Stream a response
+
+Streaming emits events as the response is generated. Collect the flow and switch on the event type;
+each `ResponseStreamEvent` also exposes the raw payload through `json`/`raw`.
+
+```kotlin
+openAI.responseStream(
+    request = ResponseRequest(
+        model = ModelId("gpt-4.1"),
+        input = ResponseInput("Write a haiku about Kotlin.")
+    )
+).collect { event ->
+    when (event.type) {
+        ResponseStreamEventType.RESPONSE_OUTPUT_TEXT_DELTA -> print(event.delta)
+        ResponseStreamEventType.RESPONSE_COMPLETED -> println()
+        else -> Unit
+    }
+}
+```
+
 ### Retrieve a response
 
 ```kotlin
@@ -149,6 +171,114 @@ val deleted = openAI.delete(responseId)
 ```kotlin
 val responseId = ResponseId("resp_123")
 val inputItems = openAI.responseInputItems(id = responseId, limit = 20)
+```
+
+## Conversations
+
+Create and manage conversations, which persist message history that later responses can continue from.
+
+### Create a conversation
+
+```kotlin
+val conversation = openAI.createConversation(
+    request = ConversationCreateRequest(
+        metadata = mapOf("topic" to "weather")
+    )
+)
+```
+
+### Retrieve a conversation
+
+```kotlin
+val conversation = openAI.conversation(ConversationId("conv_123"))
+```
+
+### Update a conversation
+
+```kotlin
+val conversation = openAI.updateConversation(
+    id = ConversationId("conv_123"),
+    request = ConversationUpdateRequest(metadata = mapOf("topic" to "sports"))
+)
+```
+
+### Delete a conversation
+
+```kotlin
+val deleted = openAI.deleteConversation(ConversationId("conv_123"))
+```
+
+### Continue a conversation with a response
+
+Pass the conversation to a response request: its items are prepended to `input`, and the response's
+input and output items are added back to the conversation once it completes. Note that `conversation`
+cannot be combined with `previousResponseId`.
+
+```kotlin
+val response = openAI.response(
+    request = ResponseRequest(
+        model = ModelId("gpt-4.1"),
+        conversation = ConversationId("conv_123"),
+        input = ResponseInput("What did I ask about earlier?")
+    )
+)
+
+println(response.outputText)
+```
+
+## Evals
+
+Create and manage evaluations. The data source config and testing criteria are passed through as
+JSON, so newer grader and data source variants remain usable without a client release.
+
+### Create an eval
+
+```kotlin
+val eval = openAI.createEval(
+    request = EvalCreateRequest(
+        name = "Sentiment accuracy",
+        dataSourceConfig = buildJsonObject {
+            put("type", "custom")
+            putJsonObject("item_schema") {
+                put("type", "object")
+                putJsonArray("properties") {
+                    addJsonObject {
+                        put("name", "input")
+                        put("type", "string")
+                    }
+                }
+            }
+        },
+        metadata = mapOf("env" to "test")
+    )
+)
+```
+
+### Retrieve an eval
+
+```kotlin
+val eval = openAI.eval(EvalId("eval_123"))
+```
+
+### Update an eval
+
+```kotlin
+val eval = openAI.updateEval(
+    id = EvalId("eval_123"),
+    request = EvalUpdateRequest(name = "Renamed eval")
+)
+```
+
+### List evals
+
+```kotlin
+val evals = openAI.evals(limit = 20)
+```
+
+### Delete an eval
+
+```kotlin
+val deleted = openAI.deleteEval(EvalId("eval_123"))
 ```
 
 ## Models
@@ -251,6 +381,51 @@ val images = openAI.imageURL( // or openAI.imageJSON
         size = ImageSize.is1024x1024
     )
 )
+```
+
+## Videos
+
+Generate videos with the Sora models. Generation is asynchronous: create a request, poll until the
+video reaches a terminal status, then download the content.
+
+### Create a video
+
+```kotlin
+val video = openAI.createVideo(
+    request = VideoCreateRequest(
+        prompt = "A calico cat playing a piano on stage",
+        model = VideoModel("sora-2"),
+        seconds = VideoSeconds("8"),
+        size = VideoSize("1280x720")
+    )
+)
+```
+
+### Retrieve a video
+
+Poll until `status` reaches a terminal state, and read `progress` for the completion percentage.
+
+```kotlin
+val video = openAI.video(VideoId("video_123"))
+println(video.status)
+```
+
+### List videos
+
+```kotlin
+val videos = openAI.videos(limit = 20)
+```
+
+### Download video content
+
+```kotlin
+val content = openAI.downloadVideoContent(VideoId("video_123"))
+```
+
+### Delete a video
+
+```kotlin
+val deleted = openAI.deleteVideo(VideoId("video_123"))
 ```
 
 ## Embeddings
@@ -560,6 +735,355 @@ val cancelled = openAI.cancel(
     vectorStoreId = VectorStoreId("vs_abc123"),
     batchId = batch.id
 )
+```
+
+## Uploads
+
+Upload files larger than the regular file limit in parts: create an upload session, upload each
+part, then complete the session with the ordered part identifiers.
+
+### Create an upload
+
+```kotlin
+val upload = openAI.createUpload(
+    request = UploadCreateRequest(
+        filename = "data.jsonl",
+        bytes = 5_000_000_000,
+        mimeType = "application/jsonl",
+        purpose = "batch"
+    )
+)
+```
+
+### Upload a part
+
+```kotlin
+val part = openAI.createUploadPart(
+    uploadId = upload.id,
+    data = FileSource(path = Path("part-0.bin"))
+)
+```
+
+### Complete an upload
+
+```kotlin
+val completed = openAI.completeUpload(
+    uploadId = upload.id,
+    partIds = listOf(part.id)
+)
+```
+
+### Cancel an upload
+
+```kotlin
+val cancelled = openAI.cancelUpload(upload.id)
+```
+
+## Webhooks
+
+Manage the endpoints that receive event notifications.
+
+### Create a webhook endpoint
+
+The signing secret is only returned here and when the secret is rotated.
+
+```kotlin
+val endpoint = openAI.createWebhookEndpoint(
+    request = WebhookEndpointCreateRequest(
+        eventTypes = listOf("response.completed", "batch.completed"),
+        name = "prod",
+        url = "https://example.com/hooks/openai"
+    )
+)
+
+println(endpoint.signingSecret)
+```
+
+### List event types
+
+```kotlin
+val eventTypes = openAI.webhookEventTypes()
+```
+
+### Rotate a signing secret
+
+```kotlin
+val rotated = openAI.rotateWebhookSecret(WebhookEndpointId("wh_1"))
+```
+
+### Delete a webhook endpoint
+
+```kotlin
+val deleted = openAI.deleteWebhookEndpoint(WebhookEndpointId("wh_1"))
+```
+
+### Verify an incoming delivery
+
+Verification is a pure function, so it works anywhere — including on a server that never holds an
+API key. Pass `nowSeconds` to also reject replayed deliveries.
+
+```kotlin
+val valid = verifySignature(
+    webhookId = headers["webhook-id"],
+    webhookTimestamp = headers["webhook-timestamp"],
+    body = rawBody,
+    signatureHeader = headers["webhook-signature"],
+    secret = signingSecret,
+) && isWithinTolerance(headers["webhook-timestamp"], DEFAULT_TOLERANCE_SECONDS, nowSeconds)
+
+if (valid) {
+    val event = unwrapWebhookEvent(rawBody)
+    when (event.type) {
+        "response.completed" -> println(event.data)
+        else -> Unit
+    }
+}
+```
+
+## Containers
+
+Containers run code for tool calls, and hold the files that code operates on.
+
+### Create a container
+
+```kotlin
+val container = openAI.createContainer(ContainerCreateRequest(name = "sandbox"))
+```
+
+### Upload a file
+
+```kotlin
+val file = openAI.createContainerFile(
+    containerId = container.id,
+    request = ContainerFileCreateRequest(
+        file = FileSource(path = Path("data.csv")),
+        path = "/data.csv"
+    )
+)
+```
+
+### Download a file
+
+```kotlin
+val content = openAI.containerFileContent(container.id, file.id)
+```
+
+## Skills
+
+### List skills
+
+```kotlin
+val skills = openAI.skills(limit = 20)
+```
+
+### Retrieve a skill
+
+```kotlin
+val skill = openAI.skill(SkillId("skill_1"))
+```
+
+## Safety
+
+### Retrieve a safety case
+
+```kotlin
+val case = openAI.safetyCase(SafetyCaseId("case_1"))
+```
+
+### Retrieve a safety alert
+
+```kotlin
+val alert = openAI.safetyAlert(SafetyAlertId("alert_1"))
+```
+
+## Live
+
+Live sessions are realtime conversations established over a WebRTC transport.
+
+### Create a session
+
+```kotlin
+val created = openAI.createLiveSession(LiveSessionCreateRequest(
+    session = buildJsonObject { put("model", liveModel) },
+    transport = LiveTransport(type = "webrtc", sdp = offerSdp)
+))
+println(created.transport?.sdp)
+```
+
+### Hang up a session
+
+```kotlin
+openAI.hangupLiveSession(LiveSessionId("sess_1"))
+```
+
+## Realtime
+
+Realtime conversations run over a WebSocket connection opened with a short-lived client secret.
+
+### Create a client secret and connect
+
+```kotlin
+val secret = openAI.createRealtimeClientSecret(RealtimeClientSecretRequest(
+    session = buildJsonObject { put("type", "realtime"); put("model", realtimeModel) }
+))
+val connection = openAI.connectRealtime(secret.value ?: error("missing secret"))
+
+connection.use {
+    // Client events always carry their `type`.
+    connection.send(RealtimeEvent.of("session.update", buildJsonObject {
+        put("session", buildJsonObject {
+            put("type", "realtime")
+            put("instructions", "You are a helpful assistant.")
+        })
+    }))
+
+    connection.events.collect { event ->
+        when (event.type) {
+            RealtimeEventType.RESPONSE_OUTPUT_AUDIO_DELTA -> handleAudio(event.delta)
+            RealtimeEventType.RESPONSE_DONE -> println("turn complete")
+            else -> Unit
+        }
+    }
+}
+```
+
+For new integrations, use the GA `client_secrets` / `calls` endpoints shown here. The legacy
+`createRealtimeSession` and `createRealtimeTranscriptionSession` methods retain the older API shape.
+
+### Accept an incoming call
+
+```kotlin
+openAI.acceptRealtimeCall(
+    RealtimeCallId("call_1"),
+    request = buildJsonObject { put("type", "realtime"); put("model", realtimeModel) }
+)
+```
+
+## Admin
+
+Manage organization projects, users, invites and admin API keys. These endpoints require an admin
+key rather than a regular project key.
+
+### List projects
+
+```kotlin
+val projects = openAI.projects(limit = 20)
+```
+
+### Create a project
+
+```kotlin
+val project = openAI.createProject(AdminProjectCreateRequest(name = "staging"))
+```
+
+### Invite a user
+
+```kotlin
+val invite = openAI.createInvite(
+    AdminInviteCreateRequest(email = "dev@example.com", role = "reader")
+)
+```
+
+### List admin API keys
+
+```kotlin
+val keys = openAI.adminApiKeys()
+```
+
+### Project-scoped resources
+
+Most organization resources also exist per project. Pass the project identifier to scope them.
+
+```kotlin
+val projectId = AdminProjectId("proj_1")
+
+val keys = openAI.projectApiKeys(projectId)
+val serviceAccount = openAI.createProjectServiceAccount(
+    projectId,
+    ProjectServiceAccountCreateRequest(name = "ci")
+)
+val role = openAI.createProjectRole(
+    projectId,
+    ProjectRoleCreateRequest(roleName = "reader", permissions = listOf("api.read"))
+)
+```
+
+### Organization resources
+
+```kotlin
+val group = openAI.createAdminGroup(AdminGroupCreateRequest(name = "engineering"))
+val role = openAI.createAdminRole(
+    AdminRoleCreateRequest(roleName = "reader", permissions = listOf("api.read"))
+)
+
+// Assign the role to the group.
+openAI.createGroupRole(group.id, AdminGroupRoleRequest(role.id))
+
+// Usage is addressed by category.
+val usage = openAI.usageCompletions(AdminUsageQuery(startTime = 1_700_000_000))
+for (bucket in usage.data) {
+    for (result in bucket.results) println(result.inputTokens)
+}
+```
+
+## Agents
+
+Agents and the sessions they run in. These endpoints are in beta.
+
+### Create an agent
+
+```kotlin
+val agent = openAI.createAgent(
+    AgentCreateRequest(
+        model = "gpt-4.1",
+        name = "researcher",
+        instructions = "You research topics thoroughly."
+    )
+)
+```
+
+### Start a session
+
+```kotlin
+val session = openAI.createAgentSession(
+    AgentSessionCreateRequest(
+        environment = buildJsonObject { put("type", "none") },
+        agentId = agent.id
+    )
+)
+```
+
+### Clean up
+
+```kotlin
+openAI.deleteAgentSession(session.id)
+openAI.deleteAgent(agent.id)
+```
+
+## Vaults
+
+Vaults hold credentials that agent sessions can use.
+
+```kotlin
+val vault = openAI.createVault(VaultCreateRequest(name = "prod"))
+
+val vaults = openAI.vaults(limit = 20)
+
+openAI.deleteVault(vault.id)
+```
+
+## ChatKit
+
+```kotlin
+val session = openAI.createChatKitSession(ChatKitSessionCreateRequest(
+    user = "user_1",
+    workflow = ChatKitWorkflow(id = "wf_1")
+))
+
+val threads = openAI.chatKitThreads(limit = 20)
+val thread = openAI.chatKitThread(ChatKitThreadId("thread_1"))
+
+openAI.cancelChatKitSession(session.id)
 ```
 
 ## Hosts
