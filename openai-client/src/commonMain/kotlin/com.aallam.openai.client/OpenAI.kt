@@ -11,7 +11,8 @@ import kotlin.time.Duration.Companion.seconds
  * OpenAI API.
  */
 public interface OpenAI : Completions, Files, Edits, Embeddings, Models, Moderations, FineTunes, Images, Chat, Audio,
-    FineTuning, Assistants, Threads, Runs, Messages, VectorStores, Batch, Responses, AutoCloseable
+    FineTuning, Assistants, Threads, Runs, Messages, VectorStores, Batch, Responses, Conversations, Videos, Evals,
+    Safety, Uploads, Webhooks, Containers, Skills, Live, Admin, Realtime, Beta, AutoCloseable
 
 /**
  * Creates an instance of [OpenAI].
@@ -58,6 +59,6 @@ public fun OpenAI(
  */
 public fun OpenAI(config: OpenAIConfig): OpenAI {
     val httpClient = createHttpClient(config)
-    val transport = HttpTransport(httpClient)
+    val transport = HttpTransport(httpClient, config.host.baseUrl)
     return OpenAIApi(transport)
 }
