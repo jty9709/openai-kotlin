@@ -7,6 +7,8 @@
 Kotlin client for [OpenAI's API](https://platform.openai.com/docs/api-reference) with multiplatform and coroutines
 capabilities.
 
+中文接入指南：[KMP SDK 接入与使用](guides/KmpIntegration.zh-CN.md)（包含当前源码接入、平台引擎、流式调用及本次同步修复的迁移说明）。
+
 ## 📦 Setup
 
 1. Install OpenAI API Kotlin client by adding the following dependency to your `build.gradle` file:
@@ -106,15 +108,26 @@ Use your `OpenAI` instance to make API requests. [Learn more](guides/GettingStar
 ### Supported features
 
 - [Responses](guides/GettingStarted.md#responses)
+- [Conversations](guides/GettingStarted.md#conversations)
 - [Models](guides/GettingStarted.md#models)
 - [Chat](guides/GettingStarted.md#chat)
 - [Images](guides/GettingStarted.md#images)
+- [Videos](guides/GettingStarted.md#videos)
 - [Embeddings](guides/GettingStarted.md#embeddings)
 - [Files](guides/GettingStarted.md#files)
 - [Fine-tuning](guides/GettingStarted.md#fine-tuning)
 - [Moderations](guides/GettingStarted.md#moderations)
 - [Audio](guides/GettingStarted.md#audio)
 - [Batch](guides/GettingStarted.md#batch)
+- [Evals](guides/GettingStarted.md#evals)
+- [Uploads](guides/GettingStarted.md#uploads)
+- [Webhooks](guides/GettingStarted.md#webhooks)
+- [Containers](guides/GettingStarted.md#containers)
+- [Skills](guides/GettingStarted.md#skills)
+- [Safety](guides/GettingStarted.md#safety)
+- [Live](guides/GettingStarted.md#live)
+- [Realtime](guides/GettingStarted.md#realtime)
+- [Admin](guides/GettingStarted.md#admin)
 
 #### Beta
 
@@ -123,6 +136,9 @@ Use your `OpenAI` instance to make API requests. [Learn more](guides/GettingStar
 - [Messages](guides/GettingStarted.md#messages)
 - [Runs](guides/GettingStarted.md#runs)
 - [Vector Stores](guides/GettingStarted.md#vector-stores)
+- [Agents](guides/GettingStarted.md#agents)
+- [Vaults](guides/GettingStarted.md#vaults)
+- [ChatKit](guides/GettingStarted.md#chatkit)
 
 #### Deprecated
 - [Completions](guides/GettingStarted.md#completions)
