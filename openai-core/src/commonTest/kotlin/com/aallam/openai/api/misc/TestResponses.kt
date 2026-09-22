@@ -4,6 +4,7 @@ import com.aallam.openai.api.chat.ChatResponseFormat
 import com.aallam.openai.api.chat.Effort
 import com.aallam.openai.api.chat.SearchContextSize
 import com.aallam.openai.api.chat.UserLocation
+import com.aallam.openai.api.conversation.ConversationId
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.api.response.*
 import kotlinx.serialization.json.Json
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class TestResponses {
 
@@ -38,6 +40,19 @@ class TestResponses {
         assertEquals("gpt-4.1", encoded["model"]?.jsonPrimitive?.content)
         assertEquals("hello", encoded["input"]?.jsonPrimitive?.content)
         assertEquals("high", encoded["tools"]?.jsonArray?.first()?.jsonObject?.get("search_context_size")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun responseRequestSerializesConversation() {
+        val request = ResponseRequest(
+            model = ModelId("gpt-4.1"),
+            conversation = ConversationId("conv_123"),
+            input = ResponseInput("hello"),
+        )
+
+        val encoded = Json.encodeToJsonElement(ResponseRequest.serializer(), request).jsonObject
+        assertEquals("conv_123", encoded["conversation"]?.jsonPrimitive?.content)
+        assertEquals("gpt-4.1", encoded["model"]?.jsonPrimitive?.content)
     }
 
     @Test
@@ -73,5 +88,57 @@ class TestResponses {
         assertEquals("internal reasoning", response.output.first().content?.first()?.reasoningContent)
         assertEquals("answer", response.outputText)
         assertNotNull(response.output.first().content)
+    }
+
+    @Test
+    fun responseStreamEventParsesTypeAndPayload() {
+        val payload = """
+            {
+              "type":"response.output_text.delta",
+              "sequence_number":3,
+              "item_id":"msg_1",
+              "output_index":0,
+              "content_index":0,
+              "delta":"Hel"
+            }
+        """.trimIndent()
+
+        val event = ResponseStreamEvent.of(Json.parseToJsonElement(payload).jsonObject)
+        assertEquals(ResponseStreamEventType.RESPONSE_OUTPUT_TEXT_DELTA, event.type)
+        assertEquals("Hel", event.delta)
+        assertEquals(3L, event.sequenceNumber)
+        assertEquals("msg_1", event.itemId)
+        assertEquals(0, event.outputIndex)
+    }
+
+    @Test
+    fun responseStreamEventFallsBackToUnknown() {
+        val unrecognized = ResponseStreamEvent.of(
+            Json.parseToJsonElement("""{"type":"response.something_new"}""").jsonObject
+        )
+        assertEquals(ResponseStreamEventType.UNKNOWN, unrecognized.type)
+
+        val missingType = ResponseStreamEvent.of(
+            Json.parseToJsonElement("""{"delta":"hi"}""").jsonObject
+        )
+        assertEquals(ResponseStreamEventType.UNKNOWN, missingType.type)
+    }
+
+    @Test
+    fun responseStreamEventToleratesNullAndNonScalarFields() {
+        val payload = """
+            {
+              "type":"response.output_text.delta",
+              "item_id":null,
+              "output_index":null,
+              "delta":{"unexpected":"object"}
+            }
+        """.trimIndent()
+
+        val event = ResponseStreamEvent.of(Json.parseToJsonElement(payload).jsonObject)
+        assertEquals(ResponseStreamEventType.RESPONSE_OUTPUT_TEXT_DELTA, event.type)
+        assertNull(event.itemId)
+        assertNull(event.outputIndex)
+        assertNull(event.delta)
     }
 }
