@@ -64,6 +64,9 @@ jobs:
           :openai-core:wasmJsTest
           :openai-core:apiCheck
           :openai-client:apiCheck
+          :openai-client:jvmTest
+          :openai-client:jsTest
+          :openai-client:wasmJsTest
           :openai-client:compileTestKotlinJvm
           :openai-client:compileTestKotlinJs
           :openai-client:compileTestKotlinWasmJs
