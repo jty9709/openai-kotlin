@@ -1,6 +1,6 @@
 # Getting Started
 
-For the current source integration and migration notes, see [KMP SDK 接入与使用指南](KmpIntegration.zh-CN.md).
+For consuming the published SDK from your own KMP project, including shared-module setup and detailed examples, see [在 KMP 工程中接入 OpenAI SDK](KmpIntegration.zh-CN.md).
 
 Create an instance of `OpenAI` client:
 
